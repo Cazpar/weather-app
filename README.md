@@ -8,6 +8,9 @@ A simple Flask web app that shows current weather for a city (or for your curren
 ![Daytime with clouds](.github/screenshots/Day.png)
 ![Nighttime](.github/screenshots/Night.png)
 
+## Live Demo
+[weather-app-env.eba-3y23n2nd.us-west-2.elasticbeanstalk.com](http://weather-app-env.eba-3y23n2nd.us-west-2.elasticbeanstalk.com)
+
 ## Features
 
 - **Search by city name** (server-side fetch via OpenWeather geocoding + current weather)
