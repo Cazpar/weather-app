@@ -19,7 +19,7 @@ def test_homepage_contains_form(client):
 def test_weather_requires_city(client):
     response = client.post("/weather", data={"city": ""})
     assert response.status_code == 200
-
+    
 def test_invalid_city_returns_error(client, monkeypatch):
     def mock_get(url, params):
         class MockResponse:
@@ -28,6 +28,6 @@ def test_invalid_city_returns_error(client, monkeypatch):
                 return []
         return MockResponse()
     
-    monkeypatch.setattr("app.routes.requests.get", mock_get)
+    monkeypatch.setattr("app.weather.requests.get", mock_get)
     response = client.post("/weather", data={"city": "fakecityxyz"})
     assert b"Could not find" in response.data
