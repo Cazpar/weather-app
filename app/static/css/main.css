@@ -158,7 +158,12 @@ body.weather-thunder .orb-2 { background: var(--orb-thunder-2); }
     margin-bottom: 1.5rem;
 }
 
+.search-form > div {
+    flex: 1;
+}
+
 .search-input {
+    width: 100%;
     flex: 1;
     padding: 0.875rem 1.25rem;
     background: var(--glass);
@@ -322,4 +327,37 @@ body.weather-thunder .orb-2 { background: var(--orb-thunder-2); }
     font-size: 1.1rem;
     font-weight: 600;
     text-transform: capitalize;
+}
+.autocomplete-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: rgba(15, 25, 50, 0.95);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    overflow: hidden;
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.autocomplete-item {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+    background: rgba(255,255,255,0.08);
+    color: var(--text-primary);
 }

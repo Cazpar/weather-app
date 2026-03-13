@@ -295,14 +295,15 @@
         <h1 class="app-title">Weather</h1>
 
         <form class="search-form" action="/weather" method="POST">
-            <input
-                class="search-input"
-                type="text"
-                name="city"
-                placeholder="Search city..."
-                required
-                autocomplete="off"
-            >
+            <div style="position: relative; flex: 1;">
+                <input
+                    class="search-input"
+                    type="text"
+                    name="city"
+                    placeholder="Search city..."
+                    autocomplete="off"
+                >
+            </div>
             <button class="search-btn" type="submit">Search</button>
         </form>
 
@@ -315,7 +316,9 @@
             <div class="weather-header">
                 <div>
                     <div class="city-name">{{ weather.city }}</div>
-                    <div class="country-badge">{{ weather.country }}</div>
+                    <div class="country-badge">
+                        {% if weather.state %}{{ weather.state }}, {% endif %}{{ weather.country }}
+                    </div>
                 </div>
                 <div class="weather-icon">
                     <img src="{{ url_for('static', filename='icons/' + weather.icon) }}" alt="{{ weather.description }}">
@@ -342,6 +345,7 @@
         </div>
         {% endif %}
     </div>
+    <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
     <script src="{{ url_for('static', filename='js/sky.js') }}"></script>
 </body>
 </html>
