@@ -334,31 +334,287 @@
         }
     </style>
 </head>
-<body class="{% if weather %}weather-{{ weather.condition }}{% endif %}">
+<body class="{% if weather %}weather-{{ weather.condition }}{% if weather.is_night %} is-night{% endif %}{% endif %}"
+      data-condition="{% if weather %}{{ weather.condition }}{% endif %}"
+      data-night="{% if weather %}{{ weather.is_night | lower }}{% endif %}"
+      data-cloudy="{% if weather %}{{ weather.is_cloudy | lower }}{% endif %}"
+      data-moon-phase="{% if weather %}{{ weather.moon_phase }}{% endif %}"
+      data-moon-illumination="{% if weather %}{{ weather.moon_illumination }}{% endif %}">
 
     <!-- Atmospheric orbs -->
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
 
-    <!-- Star field -->
-    <div class="stars" id="stars"></div>
+    <!-- Sky canvas -->
+    <canvas id="sky" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
 
     <script>
-        // Generate random stars
-        const container = document.getElementById('stars');
-        for (let i = 0; i < 80; i++) {
-            const star = document.createElement('div');
-            star.classList.add('star');
-            const opacity = (Math.random() * 0.5 + 0.1).toFixed(2);
-            star.style.cssText = `
-                left: ${Math.random() * 100}%;
-                top: ${Math.random() * 100}%;
-                --opacity: ${opacity};
-                --duration: ${(Math.random() * 3 + 2).toFixed(1)}s;
-                animation-delay: ${(Math.random() * 4).toFixed(1)}s;
-            `;
-            container.appendChild(star);
+        const canvas = document.getElementById('sky');
+        const ctx = canvas.getContext('2d');
+        const body = document.body;
+        const isNight = body.dataset.night === 'true';
+        const isCloudy = body.dataset.cloudy === 'true';
+        const condition = body.dataset.condition;
+        const moonPhase = body.dataset.moonPhase;
+        const moonIllumination = parseInt(body.dataset.moonIllumination) || 0;
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // ---- STARS ----
+        const stars = [];
+        if (isNight) {
+            for (let i = 0; i < 120; i++) {
+                stars.push({
+                    x: Math.random(),
+                    y: Math.random() * 0.7,
+                    r: Math.random() * 1.2 + 0.3,
+                    opacity: Math.random() * 0.6 + 0.2,
+                    twinkleSpeed: Math.random() * 0.02 + 0.005,
+                    twinkleOffset: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        // ---- SUN ----
+        const sun = {
+            x: 0.75,
+            y: 0.18,
+            radius: 36,
+            rayCount: 12,
+            rayAngle: 0
+        };
+
+        // ---- MOON ----
+        const moon = {
+            x: 0.72,
+            y: 0.16,
+            radius: 30,
+            phase: moonPhase,
+            illumination: moonIllumination
+        };
+
+        // ---- CLOUDS ----
+        const clouds = [];
+        if (isCloudy || condition === 'rain' || condition === 'snow') {
+            const cloudCount = condition === 'clouds' ? 5 : 3;
+            for (let i = 0; i < cloudCount; i++) {
+                clouds.push({
+                    x: Math.random(),
+                    y: Math.random() * 0.35 + 0.05,
+                    scale: Math.random() * 0.6 + 0.7,
+                    opacity: Math.random() * 0.15 + 0.08,
+                    speed: (Math.random() * 0.00008 + 0.00003) * (Math.random() < 0.5 ? 1 : -1)
+                });
+            }
+        }
+
+        function drawSun(t) {
+            const x = sun.x * canvas.width;
+            const y = sun.y * canvas.height;
+            
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Outer glow
+            const outerGlow = ctx.createRadialGradient(0, 0, sun.radius, 0, 0, sun.radius * 4);
+            outerGlow.addColorStop(0, 'rgba(255, 200, 50, 0.12)');
+            outerGlow.addColorStop(1, 'rgba(255, 200, 50, 0)');
+            ctx.beginPath();
+            ctx.arc(0, 0, sun.radius * 4, 0, Math.PI * 2);
+            ctx.fillStyle = outerGlow;
+            ctx.fill();
+
+            // Rotating rays
+            sun.rayAngle += 0.003;
+            ctx.rotate(sun.rayAngle);
+            for (let i = 0; i < sun.rayCount; i++) {
+                const angle = (i / sun.rayCount) * Math.PI * 2;
+                const innerR = sun.radius + 8;
+                const outerR = sun.radius + 20 + Math.sin(t * 0.002 + i) * 4;
+                const width = 2.5;
+                
+                ctx.save();
+                ctx.rotate(angle);
+                const rayGrad = ctx.createLinearGradient(0, innerR, 0, outerR);
+                rayGrad.addColorStop(0, 'rgba(255, 220, 80, 0.8)');
+                rayGrad.addColorStop(1, 'rgba(255, 220, 80, 0)');
+                ctx.fillStyle = rayGrad;
+                ctx.beginPath();
+                ctx.moveTo(-width/2, innerR);
+                ctx.lineTo(0, outerR);
+                ctx.lineTo(width/2, innerR);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Sun body
+            const sunGrad = ctx.createRadialGradient(-8, -8, 4, 0, 0, sun.radius);
+            sunGrad.addColorStop(0, 'rgba(255, 245, 180, 1)');
+            sunGrad.addColorStop(0.5, 'rgba(255, 200, 50, 1)');
+            sunGrad.addColorStop(1, 'rgba(255, 160, 20, 0.9)');
+            ctx.beginPath();
+            ctx.arc(0, 0, sun.radius, 0, Math.PI * 2);
+            ctx.fillStyle = sunGrad;
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawMoon() {
+            const x = moon.x * canvas.width;
+            const y = moon.y * canvas.height;
+            const r = moon.radius;
+
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Glow
+            const glow = ctx.createRadialGradient(0, 0, r, 0, 0, r * 3.5);
+            glow.addColorStop(0, 'rgba(200, 220, 255, 0.15)');
+            glow.addColorStop(1, 'rgba(200, 220, 255, 0)');
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = glow;
+            ctx.fill();
+
+            // Moon body
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            const moonGrad = ctx.createRadialGradient(-4, -4, 2, 0, 0, r);
+            moonGrad.addColorStop(0, 'rgba(240, 245, 255, 1)');
+            moonGrad.addColorStop(1, 'rgba(180, 200, 240, 0.9)');
+            ctx.fillStyle = moonGrad;
+            ctx.fill();
+
+            // Phase shadow overlay
+            ctx.globalCompositeOperation = 'source-atop';
+            
+            let shadowX = 0;
+            if (moon.phase === 'new') {
+                // Full shadow
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(10, 15, 40, 0.95)';
+                ctx.fill();
+            } else if (moon.phase === 'full') {
+                // No shadow
+            } else if (moon.phase === 'first-quarter') {
+                ctx.beginPath();
+                ctx.rect(-r, -r, r, r * 2);
+                ctx.fillStyle = 'rgba(10, 15, 40, 0.92)';
+                ctx.fill();
+            } else if (moon.phase === 'last-quarter') {
+                ctx.beginPath();
+                ctx.rect(0, -r, r, r * 2);
+                ctx.fillStyle = 'rgba(10, 15, 40, 0.92)';
+                ctx.fill();
+            } else if (moon.phase === 'waxing-crescent') {
+                ctx.beginPath();
+                ctx.arc(0, 0, r, Math.PI / 2, -Math.PI / 2);
+                ctx.arc(r * 0.3, 0, r, -Math.PI / 2, Math.PI / 2, true);
+                ctx.fillStyle = 'rgba(10, 15, 40, 0.92)';
+                ctx.fill();
+            } else if (moon.phase === 'waning-crescent') {
+                ctx.beginPath();
+                ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2);
+                ctx.arc(-r * 0.3, 0, r, Math.PI / 2, -Math.PI / 2, true);
+                ctx.fillStyle = 'rgba(10, 15, 40, 0.92)';
+                ctx.fill();
+            } else if (moon.phase === 'waxing-gibbous') {
+                ctx.beginPath();
+                ctx.arc(0, 0, r, Math.PI / 2, -Math.PI / 2);
+                ctx.arc(-r * 0.3, 0, r, -Math.PI / 2, Math.PI / 2, true);
+                ctx.fillStyle = 'rgba(10, 15, 40, 0.92)';
+                ctx.fill();
+            } else if (moon.phase === 'waning-gibbous') {
+                ctx.beginPath();
+                ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2);
+                ctx.arc(r * 0.3, 0, r, Math.PI / 2, -Math.PI / 2, true);
+                ctx.fillStyle = 'rgba(10, 15, 40, 0.92)';
+                ctx.fill();
+            }
+
+            ctx.globalCompositeOperation = 'source-over';
+
+            // Phase label (subtle)
+            ctx.font = '10px Inter, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.textAlign = 'center';
+            ctx.fillText(moon.phase.replace('-', ' '), 0, r + 16);
+            ctx.fillText(moon.illumination + '% lit', 0, r + 28);
+
+            ctx.restore();
+        }
+
+        function drawCloud(cloud, t) {
+            const x = ((cloud.x + t * cloud.speed) % 1.3 - 0.15) * canvas.width;
+            const y = cloud.y * canvas.height;
+            const s = cloud.scale * (canvas.width / 1200);
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.globalAlpha = cloud.opacity;
+
+            // Build cloud from overlapping circles
+            const puffs = [
+                { x: 0, y: 0, r: 60 * s },
+                { x: 50 * s, y: -15 * s, r: 50 * s },
+                { x: -50 * s, y: -10 * s, r: 45 * s },
+                { x: 90 * s, y: 5 * s, r: 40 * s },
+                { x: -90 * s, y: 5 * s, r: 38 * s },
+                { x: 30 * s, y: -30 * s, r: 35 * s },
+            ];
+
+            puffs.forEach(p => {
+                const grad = ctx.createRadialGradient(p.x - p.r*0.2, p.y - p.r*0.2, 0, p.x, p.y, p.r);
+                grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+                grad.addColorStop(1, 'rgba(200,210,240,0)');
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+            });
+
+            ctx.restore();
+        }
+
+        function drawStars(t) {
+            stars.forEach(star => {
+                const twinkle = Math.sin(t * star.twinkleSpeed + star.twinkleOffset);
+                const opacity = star.opacity * (0.6 + 0.4 * twinkle);
+                const x = star.x * canvas.width;
+                const y = star.y * canvas.height;
+
+                ctx.beginPath();
+                ctx.arc(x, y, star.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                ctx.fill();
+            });
+        }
+
+        let t = 0;
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            t++;
+
+            if (isNight) {
+                drawStars(t);
+                drawMoon();
+            } else {
+                drawSun(t);
+            }
+
+            clouds.forEach(cloud => drawCloud(cloud, t));
+
+            requestAnimationFrame(render);
+        }
+
+        render();
     </script>
 
     <div class="container">
